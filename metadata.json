@@ -1,0 +1,6 @@
+{
+  "name": "NairaClear",
+  "description": "Nigerian loan and debt tracker with automatic interest calculation, due-date reminders, and Gemini AI repayment planning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
