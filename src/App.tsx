@@ -110,6 +110,13 @@ export default function App() {
 
   const hasNotifiedThisSession = useRef(false);
 
+  // Cloud sync state: whether the initial pull finished, and the exact JSON
+  // the server is known to hold (so we never push back what we just pulled).
+  const cloudReadyRef = useRef(false);
+  const lastSyncedJsonRef = useRef<string | null>(null);
+  const loansRef = useRef(loans);
+  loansRef.current = loans;
+
   useEffect(() => {
     let active = true;
     const verifySession = async () => {
@@ -170,6 +177,93 @@ export default function App() {
     } catch {
       // Ignore storage quota errors
     }
+  }, [loans]);
+
+  // On unlock, pull the server copy once. Server data wins; if the server
+  // has nothing yet, this device's local data is uploaded as the first copy,
+  // so debts already entered on this phone are never wiped by an empty cloud.
+  useEffect(() => {
+    if (authStatus !== "unlocked") {
+      cloudReadyRef.current = false;
+      lastSyncedJsonRef.current = null;
+      return;
+    }
+    let active = true;
+    const pull = async () => {
+      try {
+        const headers: Record<string, string> = {};
+        const token = loadInitialAuthToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const res = await fetch("/api/loans", {
+          credentials: "include",
+          headers,
+        });
+        if (!active) return;
+        if (res.status === 503) return; // cloud storage not configured
+        if (!res.ok) return;
+        const data = (await res.json()) as { loans: Loan[] | null };
+        if (!active) return;
+
+        if (Array.isArray(data.loans)) {
+          const serverJson = JSON.stringify(data.loans);
+          lastSyncedJsonRef.current = serverJson;
+          cloudReadyRef.current = true;
+          const serverLoans = data.loans;
+          setLoans((prev) =>
+            JSON.stringify(prev) === serverJson ? prev : serverLoans
+          );
+        } else {
+          cloudReadyRef.current = true;
+          const local = loansRef.current;
+          if (local.length > 0) {
+            const putRes = await fetch("/api/loans", {
+              method: "PUT",
+              credentials: "include",
+              headers: { ...headers, "Content-Type": "application/json" },
+              body: JSON.stringify({ loans: local }),
+            });
+            if (putRes.ok && active) {
+              lastSyncedJsonRef.current = JSON.stringify(local);
+            }
+          } else {
+            lastSyncedJsonRef.current = JSON.stringify([]);
+          }
+        }
+      } catch {
+        // Offline or server error: keep working from local storage.
+      }
+    };
+    pull();
+    return () => {
+      active = false;
+    };
+  }, [authStatus]);
+
+  // Push local changes up, debounced, whenever they differ from the last
+  // state the server confirmed.
+  useEffect(() => {
+    if (!cloudReadyRef.current) return;
+    const json = JSON.stringify(loans);
+    if (json === lastSyncedJsonRef.current) return;
+    const timer = window.setTimeout(async () => {
+      try {
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        const token = loadInitialAuthToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const res = await fetch("/api/loans", {
+          method: "PUT",
+          credentials: "include",
+          headers,
+          body: JSON.stringify({ loans }),
+        });
+        if (res.ok) lastSyncedJsonRef.current = json;
+      } catch {
+        // Will retry on the next change or next unlock.
+      }
+    }, 900);
+    return () => window.clearTimeout(timer);
   }, [loans]);
 
   useEffect(() => {

@@ -114,6 +114,35 @@ function getClientIp(req: Request): string {
   return req.socket.remoteAddress || "unknown";
 }
 
+// --- Supabase cloud storage (optional) ---
+// When SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set, the owner's loan
+// list is stored server-side in a single-row document table so every device
+// sees the same data. The service-role key never leaves the server; the
+// browser only ever talks to /api/loans behind the owner session.
+function getSupabaseConfig(): { url: string; key: string } | null {
+  const url = (process.env.SUPABASE_URL || "").trim().replace(/\/+$/, "");
+  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+  if (!url || !key) return null;
+  return { url, key };
+}
+
+async function supabaseFetch(
+  pathname: string,
+  init: RequestInit & { headers?: Record<string, string> }
+): Promise<globalThis.Response> {
+  const cfg = getSupabaseConfig();
+  if (!cfg) throw new Error("Cloud storage is not configured.");
+  return fetch(`${cfg.url}/rest/v1/${pathname}`, {
+    ...init,
+    headers: {
+      apikey: cfg.key,
+      Authorization: `Bearer ${cfg.key}`,
+      "Content-Type": "application/json",
+      ...(init.headers || {}),
+    },
+  });
+}
+
 function getGeminiClient() {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -250,7 +279,7 @@ async function startServer() {
   app.get("/api/auth/status", (req, res) => {
     const configured = Boolean(getConfiguredPasscode());
     const authenticated = configured && verifySessionToken(extractRequestToken(req));
-    res.json({ authenticated });
+    res.json({ authenticated, cloudStorage: Boolean(getSupabaseConfig()) });
   });
 
   app.post("/api/auth/login", (req, res) => {
@@ -322,6 +351,75 @@ async function startServer() {
       path: "/",
     });
     res.json({ ok: true });
+  });
+
+  app.get("/api/loans", requireOwnerAuth, async (_req, res) => {
+    if (!getSupabaseConfig()) {
+      res.status(503).json({
+        error: "Cloud storage is not configured on the server.",
+        configured: false,
+      });
+      return;
+    }
+    try {
+      const r = await supabaseFetch(
+        "nairaclear_state?select=value,updated_at&key=eq.loans",
+        { method: "GET" }
+      );
+      if (!r.ok) {
+        throw new Error(`Supabase read failed (${r.status}): ${await r.text()}`);
+      }
+      const rows = (await r.json()) as Array<{
+        value: unknown;
+        updated_at: string;
+      }>;
+      if (!Array.isArray(rows) || rows.length === 0) {
+        res.json({ loans: null, updatedAt: null });
+        return;
+      }
+      res.json({ loans: rows[0].value, updatedAt: rows[0].updated_at });
+    } catch (error: unknown) {
+      console.error("Loan load error:", error);
+      res.status(500).json({ error: extractReadableError(error) });
+    }
+  });
+
+  app.put("/api/loans", requireOwnerAuth, async (req, res) => {
+    if (!getSupabaseConfig()) {
+      res.status(503).json({
+        error: "Cloud storage is not configured on the server.",
+        configured: false,
+      });
+      return;
+    }
+    const { loans } = req.body as { loans?: unknown };
+    if (!Array.isArray(loans)) {
+      res.status(400).json({ error: "Expected a body of { loans: [...] }." });
+      return;
+    }
+    try {
+      const r = await supabaseFetch("nairaclear_state?on_conflict=key", {
+        method: "POST",
+        headers: {
+          Prefer: "resolution=merge-duplicates,return=representation",
+        },
+        body: JSON.stringify({
+          key: "loans",
+          value: loans,
+          updated_at: new Date().toISOString(),
+        }),
+      });
+      if (!r.ok) {
+        throw new Error(
+          `Supabase write failed (${r.status}): ${await r.text()}`
+        );
+      }
+      const rows = (await r.json()) as Array<{ updated_at: string }>;
+      res.json({ ok: true, updatedAt: rows?.[0]?.updated_at || null });
+    } catch (error: unknown) {
+      console.error("Loan save error:", error);
+      res.status(500).json({ error: extractReadableError(error) });
+    }
   });
 
   app.post("/api/repayment-plan", requireOwnerAuth, async (req, res) => {
