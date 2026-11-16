@@ -284,21 +284,21 @@ export const LoanModal: React.FC<LoanModalProps> = ({
               </div>
             </div>
 
-            {/* 2. Loan Name & Lender Dropdown */}
+            {/* 2. Debt Name & Lender Dropdown */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label
                   htmlFor="loan-name"
                   className="block text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200 mb-1"
                 >
-                  Loan Name
+                  Debt Name
                 </label>
                 <input
                   id="loan-name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., Rent Top-Up or Stock"
+                  placeholder="e.g., PalmPay Loan"
                   className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-600 focus:outline-none"
                   required
                 />
