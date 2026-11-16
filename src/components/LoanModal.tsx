@@ -229,11 +229,11 @@ export const LoanModal: React.FC<LoanModalProps> = ({
           <div>
             <h2
               id="loan-modal-title"
-              className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100"
+              className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-slate-100"
             >
               {editingLoan ? "Edit Loan Record" : "Add New Debt"}
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Interest and total repayment calculate live as you type.
             </p>
           </div>
@@ -251,14 +251,14 @@ export const LoanModal: React.FC<LoanModalProps> = ({
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <div className="overflow-y-auto px-5 sm:px-6 py-4 sm:py-5 space-y-4">
             {formError && (
-              <div className="rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-4 py-2.5 text-xs sm:text-sm text-red-700 dark:text-red-300">
+              <div className="rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-4 py-2.5 text-sm sm:text-base text-red-700 dark:text-red-300">
                 {formError}
               </div>
             )}
 
             {/* 1. What type of debt is this? — 2 columns on mobile */}
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-slate-900 dark:text-slate-100 mb-2">
+              <label className="block text-sm sm:text-base font-medium text-slate-900 dark:text-slate-100 mb-2">
                 What type of debt is this?
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -275,7 +275,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
                           : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
                       }`}
                     >
-                      <span className="text-xs sm:text-sm font-medium truncate">
+                      <span className="text-sm sm:text-base font-medium truncate">
                         {SHORT_DEBT_LABELS[item.type]}
                       </span>
                     </button>
@@ -289,7 +289,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
               <div>
                 <label
                   htmlFor="loan-name"
-                  className="block text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200 mb-1"
+                  className="block text-sm sm:text-base font-medium text-slate-800 dark:text-slate-200 mb-1"
                 >
                   Debt Name
                 </label>
@@ -299,7 +299,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g., PalmPay Loan"
-                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-base text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-600 focus:outline-none"
                   required
                 />
               </div>
@@ -307,7 +307,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
               <div>
                 <label
                   htmlFor="loan-lender-select"
-                  className="block text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200 mb-1"
+                  className="block text-sm sm:text-base font-medium text-slate-800 dark:text-slate-200 mb-1"
                 >
                   Lender
                 </label>
@@ -315,7 +315,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
                   id="loan-lender-select"
                   value={selectedLenderOption}
                   onChange={(e) => handleLenderDropdownChange(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-base text-slate-900 dark:text-slate-100 focus:border-emerald-600 focus:outline-none"
                 >
                   {orderedCategories.map((cat) => (
                     <optgroup key={cat} label={cat}>
@@ -339,7 +339,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
               <div>
                 <label
                   htmlFor="loan-custom-lender"
-                  className="block text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200 mb-1"
+                  className="block text-sm sm:text-base font-medium text-slate-800 dark:text-slate-200 mb-1"
                 >
                   Custom Lender or Person Name
                 </label>
@@ -349,7 +349,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
                   value={customLender}
                   onChange={(e) => setCustomLender(e.target.value)}
                   placeholder="e.g., Uncle Tunde, Shop Landlord, Local Ajo"
-                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-base text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-600 focus:outline-none"
                   required
                 />
               </div>
@@ -360,7 +360,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
               <div>
                 <label
                   htmlFor="loan-principal"
-                  className="block text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200 mb-1"
+                  className="block text-sm sm:text-base font-medium text-slate-800 dark:text-slate-200 mb-1"
                 >
                   Amount Borrowed (₦)
                 </label>
@@ -372,7 +372,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
                   value={principal}
                   onChange={(e) => setPrincipal(e.target.value)}
                   placeholder="35000"
-                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 font-mono text-sm tabular-nums text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 font-mono text-base tabular-nums text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-600 focus:outline-none"
                   required
                 />
               </div>
@@ -380,7 +380,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
               <div>
                 <label
                   htmlFor="loan-interest"
-                  className="block text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200 mb-1"
+                  className="block text-sm sm:text-base font-medium text-slate-800 dark:text-slate-200 mb-1"
                 >
                   Interest (%)
                 </label>
@@ -393,9 +393,9 @@ export const LoanModal: React.FC<LoanModalProps> = ({
                     value={interestRate}
                     onChange={(e) => setInterestRate(e.target.value)}
                     placeholder="42"
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 pl-3.5 pr-9 py-2.5 font-mono text-sm tabular-nums text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-600 focus:outline-none"
+                    className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 pl-3.5 pr-9 py-2.5 font-mono text-base tabular-nums text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-600 focus:outline-none"
                   />
-                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-sm text-slate-400 dark:text-slate-500">
+                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-base text-slate-400 dark:text-slate-500">
                     %
                   </span>
                 </div>
@@ -410,18 +410,18 @@ export const LoanModal: React.FC<LoanModalProps> = ({
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <span className="block text-xs text-slate-600 dark:text-slate-400">
+                  <span className="block text-sm text-slate-600 dark:text-slate-400">
                     Interest amount
                   </span>
-                  <span className="font-mono text-base font-semibold tabular-nums text-amber-700 dark:text-amber-400">
+                  <span className="font-mono text-lg font-semibold tabular-nums text-amber-700 dark:text-amber-400">
                     {formatNaira(calculatedInterest)}
                   </span>
                 </div>
                 <div>
-                  <span className="block text-xs text-slate-600 dark:text-slate-400">
+                  <span className="block text-sm text-slate-600 dark:text-slate-400">
                     Total to repay
                   </span>
-                  <span className="font-mono text-base font-semibold tabular-nums text-emerald-800 dark:text-emerald-300">
+                  <span className="font-mono text-lg font-semibold tabular-nums text-emerald-800 dark:text-emerald-300">
                     {formatNaira(totalRepayment)}
                   </span>
                 </div>
@@ -433,7 +433,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
               <div className="flex items-center justify-between mb-1">
                 <label
                   htmlFor="loan-duration"
-                  className="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200"
+                  className="text-sm sm:text-base font-medium text-slate-800 dark:text-slate-200"
                 >
                   How Long
                 </label>
@@ -451,7 +451,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
                     setDurationValue(e.target.value);
                     setDueDateManuallyEdited(false);
                   }}
-                  className="w-24 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 font-mono text-sm tabular-nums text-slate-900 dark:text-slate-100 focus:border-emerald-600 focus:outline-none"
+                  className="w-24 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 font-mono text-base tabular-nums text-slate-900 dark:text-slate-100 focus:border-emerald-600 focus:outline-none"
                   required
                 />
                 <select
@@ -461,7 +461,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
                     setDurationUnit(e.target.value as DurationUnit);
                     setDueDateManuallyEdited(false);
                   }}
-                  className="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:border-emerald-600 focus:outline-none"
+                  className="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-base text-slate-900 dark:text-slate-100 focus:border-emerald-600 focus:outline-none"
                 >
                   <option value="months">Months</option>
                   <option value="days">Days</option>
@@ -480,7 +480,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
                     key={opt.label}
                     type="button"
                     onClick={() => handleQuickDuration(opt.v, opt.u)}
-                    className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs text-slate-600 dark:text-slate-300 transition-colors hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 whitespace-nowrap shrink-0"
+                    className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-sm text-slate-600 dark:text-slate-300 transition-colors hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 whitespace-nowrap shrink-0"
                   >
                     {opt.label}
                   </button>
@@ -492,7 +492,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
               <div>
                 <label
                   htmlFor="loan-start-date"
-                  className="block text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200 mb-1"
+                  className="block text-sm sm:text-base font-medium text-slate-800 dark:text-slate-200 mb-1"
                 >
                   Date Borrowed
                 </label>
@@ -501,7 +501,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 font-mono text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 font-mono text-sm sm:text-base text-slate-900 dark:text-slate-100 focus:border-emerald-600 focus:outline-none"
                   required
                 />
               </div>
@@ -510,7 +510,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
                 <div className="flex items-center justify-between mb-1">
                   <label
                     htmlFor="loan-due-date"
-                    className="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200"
+                    className="text-sm sm:text-base font-medium text-slate-800 dark:text-slate-200"
                   >
                     Due Date
                   </label>
@@ -532,7 +532,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
                     setDueDate(e.target.value);
                     setDueDateManuallyEdited(true);
                   }}
-                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 font-mono text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 font-mono text-sm sm:text-base text-slate-900 dark:text-slate-100 focus:border-emerald-600 focus:outline-none"
                   required
                 />
               </div>
@@ -542,7 +542,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
             <div>
               <label
                 htmlFor="loan-notes"
-                className="block text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200 mb-1"
+                className="block text-sm sm:text-base font-medium text-slate-800 dark:text-slate-200 mb-1"
               >
                 Optional Notes
               </label>
@@ -552,7 +552,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Repayment account, rollover warning, guarantor info, etc."
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-600 focus:outline-none"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-base text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-600 focus:outline-none"
               />
             </div>
           </div>
@@ -562,13 +562,13 @@ export const LoanModal: React.FC<LoanModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 sm:flex-none rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 whitespace-nowrap shrink-0"
+              className="flex-1 sm:flex-none rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-base font-medium text-slate-700 dark:text-slate-200 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 whitespace-nowrap shrink-0"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 sm:flex-none rounded-lg bg-slate-900 dark:bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 dark:hover:bg-emerald-700 whitespace-nowrap shrink-0"
+              className="flex-1 sm:flex-none rounded-lg bg-slate-900 dark:bg-emerald-600 px-5 py-2.5 text-base font-medium text-white transition-colors hover:bg-slate-800 dark:hover:bg-emerald-700 whitespace-nowrap shrink-0"
             >
               {editingLoan ? "Save Changes" : "Save Loan"}
             </button>
