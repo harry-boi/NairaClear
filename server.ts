@@ -264,6 +264,53 @@ interface LoanPayload {
   startDate: string;
   dueDate: string;
   notes?: string;
+  hasTerms?: boolean;
+  installments?: Array<{ id?: string; amount: number; dueDate: string }>;
+  installmentSchedule?: Array<{
+    amount: number;
+    dueDate: string;
+    paidAmount: number;
+    remainingAmount: number;
+    status: string;
+  }>;
+}
+
+// Build a compact repayment-terms summary for the AI prompts. Prefers the
+// client's computed schedule (which knows how recorded payments split across
+// terms) and falls back to the raw installment list.
+function buildTermsSummary(l: LoanPayload) {
+  const raw =
+    Array.isArray(l.installmentSchedule) && l.installmentSchedule.length > 0
+      ? l.installmentSchedule
+      : Array.isArray(l.installments)
+        ? l.installments
+        : [];
+  if (raw.length === 0) return null;
+
+  const schedule = raw.map((t, i) => {
+    const paidNGN =
+      "paidAmount" in t && typeof t.paidAmount === "number" ? t.paidAmount : 0;
+    const remainingNGN =
+      "remainingAmount" in t && typeof t.remainingAmount === "number"
+        ? t.remainingAmount
+        : t.amount - paidNGN;
+    return {
+      term: i + 1,
+      amountNGN: t.amount,
+      dueDate: t.dueDate,
+      paidNGN,
+      remainingNGN,
+      status:
+        "status" in t && typeof t.status === "string"
+          ? t.status
+          : remainingNGN <= 0
+            ? "paid"
+            : "scheduled",
+    };
+  });
+
+  const nextTerm = schedule.find((t) => t.remainingNGN > 0) || null;
+  return { termsCount: schedule.length, nextTerm, schedule };
 }
 
 async function startServer() {
@@ -462,6 +509,7 @@ async function startServer() {
         paidSoFarNGN: l.amountPaid,
         remainingBalanceNGN: l.remainingBalance,
         dueDate: l.dueDate,
+        repaymentTerms: buildTermsSummary(l),
         notes: l.notes || "",
       }));
 
@@ -474,6 +522,8 @@ ${paydayDay ? `Expected monthly payday / income day: Day ${paydayDay} of the mon
 
 Here are the user's active loans:
 ${JSON.stringify(activeLoansSummary, null, 2)}
+
+Some loans carry repaymentTerms: a schedule of installments (terms), each with its own amount and due date. For those loans, only the NEXT term's remaining amount falls due on the next term's due date; the rest of the balance falls due on the later term dates. Weigh urgency by the next term's amount and due date (not the full remaining balance), and make sure the plan covers each term on time. For loans without repaymentTerms, the full remaining balance falls due on the single dueDate.
 
 Analyze these exact loans carefully within the Nigerian lending context:
 - Nigerian digital Loan Apps (e.g., PalmPay, FairMoney, Carbon, Branch, OKash/OPay, QuickCheck, EaseMoni, Renmoney) typically charge steep daily rollover/late penalties (often 1%–2% per day overdue) and report to credit bureaus (CRC, FirstCentral) or contact references if overdue.
@@ -594,10 +644,18 @@ Active Loans:
 ${
   loans.length > 0
     ? loans
-        .map(
-          (l) =>
-            `- ${l.name} (${l.lender} · ${l.debtType}): Borrowed ₦${l.principal.toLocaleString("en-NG")}, Interest ${l.interestRate}%, Remaining ₦${l.remainingBalance.toLocaleString("en-NG")} of ₦${l.totalDue.toLocaleString("en-NG")}, Tenure ${l.durationValue} ${l.durationUnit}, Due ${l.dueDate}${l.notes ? ` · Notes: ${l.notes}` : ""}`
-        )
+        .map((l) => {
+          const terms = buildTermsSummary(l);
+          const termsText = terms
+            ? ` · Repayment terms (${terms.termsCount}): ${terms.schedule
+                .map(
+                  (t) =>
+                    `Term ${t.term}: ₦${t.amountNGN.toLocaleString("en-NG")} due ${t.dueDate} (${t.remainingNGN <= 0 ? "paid" : `₦${t.remainingNGN.toLocaleString("en-NG")} left`})`
+                )
+                .join("; ")}`
+            : "";
+          return `- ${l.name} (${l.lender} · ${l.debtType}): Borrowed ₦${l.principal.toLocaleString("en-NG")}, Interest ${l.interestRate}%, Remaining ₦${l.remainingBalance.toLocaleString("en-NG")} of ₦${l.totalDue.toLocaleString("en-NG")}, Tenure ${l.durationValue} ${l.durationUnit}, Due ${l.dueDate}${termsText}${l.notes ? ` · Notes: ${l.notes}` : ""}`;
+        })
         .join("\n")
     : "No active loans recorded."
 }
