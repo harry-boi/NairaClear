@@ -5,6 +5,7 @@ import {
   DurationUnit,
   InterestMode,
   Loan,
+  LoanInstallment,
 } from "../types/loan";
 import {
   DEBT_TYPES,
@@ -13,6 +14,7 @@ import {
   computeDueDateFromDuration,
   formatNaira,
   getTodayISO,
+  splitIntoTerms,
 } from "../utils/nigerianLenders";
 
 interface LoanModalProps {
@@ -58,6 +60,9 @@ export const LoanModal: React.FC<LoanModalProps> = ({
     computeDueDateFromDuration(getTodayISO(), 1, "months")
   );
   const [dueDateManuallyEdited, setDueDateManuallyEdited] = useState(false);
+  const [termCount, setTermCount] = useState(1);
+  const [terms, setTerms] = useState<Array<{ amount: string; dueDate: string }>>([]);
+  const [termsEdited, setTermsEdited] = useState(false);
   const [notes, setNotes] = useState("");
   const [formError, setFormError] = useState("");
 
@@ -80,7 +85,28 @@ export const LoanModal: React.FC<LoanModalProps> = ({
       setDurationValue(String(editingLoan.durationValue));
       setDurationUnit(editingLoan.durationUnit);
       setStartDate(editingLoan.startDate);
-      setDueDate(editingLoan.dueDate);
+      const storedTerms = [...(editingLoan.installments || [])].sort((a, b) =>
+        a.dueDate.localeCompare(b.dueDate)
+      );
+      if (storedTerms.length >= 2) {
+        // The stored dueDate is the final term's date; a computed loan passed
+        // in here may carry the NEXT term's date instead, so always take the
+        // last term's date as the loan's due date.
+        setDueDate(storedTerms[storedTerms.length - 1].dueDate);
+        setTermCount(storedTerms.length);
+        setTerms(
+          storedTerms.map((t) => ({
+            amount: String(t.amount),
+            dueDate: t.dueDate,
+          }))
+        );
+        setTermsEdited(true);
+      } else {
+        setDueDate(editingLoan.dueDate);
+        setTermCount(1);
+        setTerms([]);
+        setTermsEdited(false);
+      }
       setDueDateManuallyEdited(true);
       setNotes(editingLoan.notes || "");
     } else {
@@ -97,6 +123,9 @@ export const LoanModal: React.FC<LoanModalProps> = ({
       setStartDate(today);
       setDueDate(computeDueDateFromDuration(today, 1, "months"));
       setDueDateManuallyEdited(false);
+      setTermCount(1);
+      setTerms([]);
+      setTermsEdited(false);
       setNotes("");
     }
   }, [isOpen, editingLoan]);
@@ -107,6 +136,33 @@ export const LoanModal: React.FC<LoanModalProps> = ({
       setDueDate(computeDueDateFromDuration(startDate, dur, durationUnit));
     }
   }, [startDate, durationValue, durationUnit, dueDateManuallyEdited]);
+
+  // Keep the term split in sync with the live total until the user edits a
+  // term by hand; after that their numbers stay untouched.
+  useEffect(() => {
+    if (termCount < 2 || termsEdited) return;
+    const p = Math.max(0, Number(principal) || 0);
+    const r = Math.max(0, Number(interestRate) || 0);
+    const dur = Math.max(1, Number(durationValue) || 1);
+    const total =
+      p + calculateInterestAmount(p, r, interestMode, dur, durationUnit);
+    setTerms(
+      splitIntoTerms(total, termCount, startDate, dueDate).map((t) => ({
+        amount: String(t.amount),
+        dueDate: t.dueDate,
+      }))
+    );
+  }, [
+    termCount,
+    termsEdited,
+    principal,
+    interestRate,
+    interestMode,
+    durationValue,
+    durationUnit,
+    startDate,
+    dueDate,
+  ]);
 
   if (!isOpen) return null;
 
@@ -170,6 +226,26 @@ export const LoanModal: React.FC<LoanModalProps> = ({
       ? customLender.trim()
       : selectedLenderOption;
 
+  const termsTotal = terms.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const termsMismatch =
+    termCount > 1 && Math.abs(termsTotal - totalRepayment) > 1;
+
+  const handleTermCountChange = (n: number) => {
+    setTermCount(n);
+    setTermsEdited(false);
+  };
+
+  const handleTermChange = (
+    index: number,
+    field: "amount" | "dueDate",
+    value: string
+  ) => {
+    setTerms((prev) =>
+      prev.map((t, i) => (i === index ? { ...t, [field]: value } : t))
+    );
+    setTermsEdited(true);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!resolvedLender) {
@@ -189,6 +265,32 @@ export const LoanModal: React.FC<LoanModalProps> = ({
       return;
     }
 
+    let savedDueDate = dueDate;
+    let installments: LoanInstallment[] | undefined = undefined;
+    if (termCount > 1) {
+      if (
+        terms.length !== termCount ||
+        terms.some((t) => !(Number(t.amount) > 0) || !t.dueDate)
+      ) {
+        setFormError("Please complete every term's amount and due date.");
+        return;
+      }
+      if (termsMismatch) {
+        setFormError(
+          `Your terms add up to ${formatNaira(termsTotal)} but the total to repay is ${formatNaira(totalRepayment)}. Adjust the amounts or re-split evenly.`
+        );
+        return;
+      }
+      installments = terms
+        .map((t, i) => ({
+          id: editingLoan?.installments?.[i]?.id ?? `term-${Date.now()}-${i}`,
+          amount: Number(t.amount),
+          dueDate: t.dueDate,
+        }))
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+      savedDueDate = installments[installments.length - 1].dueDate;
+    }
+
     onSave(
       {
         debtType,
@@ -200,7 +302,8 @@ export const LoanModal: React.FC<LoanModalProps> = ({
         durationValue: numericDuration,
         durationUnit,
         startDate,
-        dueDate,
+        dueDate: savedDueDate,
+        installments,
         notes: notes.trim(),
       },
       editingLoan?.id
@@ -538,7 +641,115 @@ export const LoanModal: React.FC<LoanModalProps> = ({
               </div>
             </div>
 
-            {/* 6. Optional Notes */}
+            {/* 6. Repayment Terms */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label
+                  htmlFor="loan-term-count"
+                  className="text-sm sm:text-base font-medium text-slate-800 dark:text-slate-200"
+                >
+                  Repayment Terms
+                </label>
+                <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                  Split the total into parts, each with its own due date
+                </span>
+              </div>
+              <select
+                id="loan-term-count"
+                value={termCount}
+                onChange={(e) => handleTermCountChange(Number(e.target.value))}
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-base text-slate-900 dark:text-slate-100 focus:border-emerald-600 focus:outline-none"
+              >
+                <option value={1}>Single payment (no terms)</option>
+                {[2, 3, 4, 5, 6, 8, 10, 12].map((n) => (
+                  <option key={n} value={n}>
+                    {n} terms
+                  </option>
+                ))}
+              </select>
+
+              {termCount > 1 && (
+                <div className="mt-3 space-y-2.5">
+                  {terms.map((term, i) => (
+                    <div
+                      key={i}
+                      className="grid grid-cols-[64px_1fr_1fr] items-end gap-2"
+                    >
+                      <span className="pb-2.5 text-sm font-medium text-slate-600 dark:text-slate-300">
+                        Term {i + 1}
+                      </span>
+                      <div>
+                        <label
+                          htmlFor={`term-amount-${i}`}
+                          className="block text-[11px] text-slate-400 dark:text-slate-500 mb-1"
+                        >
+                          Amount (₦)
+                        </label>
+                        <input
+                          id={`term-amount-${i}`}
+                          type="number"
+                          min="1"
+                          step="any"
+                          value={term.amount}
+                          onChange={(e) =>
+                            handleTermChange(i, "amount", e.target.value)
+                          }
+                          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 font-mono text-base tabular-nums text-slate-900 dark:text-slate-100 focus:border-emerald-600 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor={`term-date-${i}`}
+                          className="block text-[11px] text-slate-400 dark:text-slate-500 mb-1"
+                        >
+                          Due date
+                        </label>
+                        <input
+                          id={`term-date-${i}`}
+                          type="date"
+                          value={term.dueDate}
+                          onChange={(e) =>
+                            handleTermChange(i, "dueDate", e.target.value)
+                          }
+                          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 font-mono text-sm sm:text-base text-slate-900 dark:text-slate-100 focus:border-emerald-600 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span
+                      className={`text-sm ${
+                        termsMismatch
+                          ? "font-medium text-red-600 dark:text-red-400"
+                          : "text-slate-500 dark:text-slate-400"
+                      }`}
+                    >
+                      Terms total:{" "}
+                      <span className="font-mono tabular-nums">
+                        {formatNaira(termsTotal)}
+                      </span>{" "}
+                      of{" "}
+                      <span className="font-mono tabular-nums">
+                        {formatNaira(totalRepayment)}
+                      </span>
+                      {termsMismatch ? " — amounts must add up" : ""}
+                    </span>
+                    {termsEdited && (
+                      <button
+                        type="button"
+                        onClick={() => setTermsEdited(false)}
+                        className="text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:underline whitespace-nowrap shrink-0"
+                      >
+                        Re-split evenly
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 7. Optional Notes */}
             <div>
               <label
                 htmlFor="loan-notes"

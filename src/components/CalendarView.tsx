@@ -9,20 +9,69 @@ interface CalendarViewProps {
   onAddLoan: () => void;
 }
 
+interface CalendarEntry {
+  key: string;
+  loan: ComputedLoan;
+  titleSuffix: string;
+  dueDate: string;
+  daysUntilDue: number;
+  isOverdue: boolean;
+  isDueSoon: boolean;
+  amount: number; // amount still owed for this entry
+  detailLine: string;
+}
+
 export const CalendarView: React.FC<CalendarViewProps> = ({
   loans,
   onOpenPayment,
   onAddLoan,
 }) => {
   const groupedByMonth = useMemo(() => {
-    const active = loans
-      .filter((l) => l.remainingBalance > 0)
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+    const entries: CalendarEntry[] = [];
 
-    const groups = new Map<string, { label: string; loans: ComputedLoan[]; monthTotal: number }>();
+    for (const loan of loans) {
+      if (loan.remainingBalance <= 0) continue;
+      if (loan.hasTerms) {
+        // One calendar entry per unpaid term, so each term's own due date
+        // and amount shows in its own month.
+        for (const term of loan.installmentSchedule) {
+          if (term.remainingAmount <= 0) continue;
+          entries.push({
+            key: `${loan.id}-${term.id}`,
+            loan,
+            titleSuffix: ` · Term ${term.index + 1} of ${loan.installmentSchedule.length}`,
+            dueDate: term.dueDate,
+            daysUntilDue: term.daysUntilDue,
+            isOverdue: term.status === "overdue",
+            isDueSoon: term.status === "due-soon",
+            amount: term.remainingAmount,
+            detailLine:
+              term.paidAmount > 0
+                ? `${formatNaira(term.paidAmount)} already paid towards this term`
+                : `Full term: ${formatNaira(term.amount)}`,
+          });
+        }
+      } else {
+        entries.push({
+          key: loan.id,
+          loan,
+          titleSuffix: "",
+          dueDate: loan.dueDate,
+          daysUntilDue: loan.daysUntilDue,
+          isOverdue: loan.status === "overdue",
+          isDueSoon: loan.status === "due-soon",
+          amount: loan.remainingBalance,
+          detailLine: `Includes ${formatNaira(loan.interestAmount)} interest`,
+        });
+      }
+    }
 
-    for (const loan of active) {
-      const [y, m] = loan.dueDate.split("-").map(Number);
+    entries.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+    const groups = new Map<string, { label: string; entries: CalendarEntry[]; monthTotal: number }>();
+
+    for (const entry of entries) {
+      const [y, m] = entry.dueDate.split("-").map(Number);
       const key = `${y}-${String(m).padStart(2, "0")}`;
       const label =
         y && m
@@ -32,9 +81,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             })
           : "Scheduled";
 
-      const existing = groups.get(key) || { label, loans: [], monthTotal: 0 };
-      existing.loans.push(loan);
-      existing.monthTotal += loan.remainingBalance;
+      const existing = groups.get(key) || { label, entries: [], monthTotal: 0 };
+      existing.entries.push(entry);
+      existing.monthTotal += entry.amount;
       groups.set(key, existing);
     }
 
@@ -99,38 +148,36 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               </div>
 
               <div className="divide-y divide-slate-200 dark:divide-slate-800">
-                {group.loans.map((loan) => {
-                  const isOverdue = loan.status === "overdue";
-                  const isDueSoon = loan.status === "due-soon";
-
+                {group.entries.map((entry) => {
+                  const loan = entry.loan;
                   return (
                     <div
-                      key={loan.id}
+                      key={entry.key}
                       className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 py-4"
                     >
                       <div className="flex items-start gap-4">
                         <div className="w-24 shrink-0">
                           <div className="font-mono text-xs font-semibold text-slate-900 dark:text-slate-100">
-                            {formatReadableDate(loan.dueDate)}
+                            {formatReadableDate(entry.dueDate)}
                           </div>
                           <div className="mt-1">
-                            {isOverdue ? (
+                            {entry.isOverdue ? (
                               <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 dark:text-red-400">
                                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                <span>{Math.abs(loan.daysUntilDue)}d late</span>
+                                <span>{Math.abs(entry.daysUntilDue)}d late</span>
                               </span>
-                            ) : isDueSoon ? (
+                            ) : entry.isDueSoon ? (
                               <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
                                 <Clock className="h-3.5 w-3.5 shrink-0" />
                                 <span>
-                                  {loan.daysUntilDue === 0
+                                  {entry.daysUntilDue === 0
                                     ? "Today"
-                                    : `In ${loan.daysUntilDue}d`}
+                                    : `In ${entry.daysUntilDue}d`}
                                 </span>
                               </span>
                             ) : (
                               <span className="text-xs text-slate-500 dark:text-slate-400">
-                                In {loan.daysUntilDue}d
+                                In {entry.daysUntilDue}d
                               </span>
                             )}
                           </div>
@@ -139,6 +186,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         <div>
                           <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
                             {loan.name}
+                            {entry.titleSuffix}
                           </div>
                           <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                             {loan.lender} · {loan.debtType} · Borrowed{" "}
@@ -150,10 +198,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       <div className="flex items-center justify-between sm:justify-end gap-4">
                         <div className="text-left sm:text-right">
                           <div className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
-                            {formatNaira(loan.remainingBalance)}
+                            {formatNaira(entry.amount)}
                           </div>
                           <div className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">
-                            Includes {formatNaira(loan.interestAmount)} interest
+                            {entry.detailLine}
                           </div>
                         </div>
                         <button

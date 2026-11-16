@@ -16,6 +16,20 @@ export interface PaymentRecord {
   note?: string;
 }
 
+export interface LoanInstallment {
+  id: string;
+  amount: number;
+  dueDate: string; // YYYY-MM-DD
+}
+
+export interface ComputedInstallment extends LoanInstallment {
+  index: number; // 0-based position in the schedule
+  paidAmount: number; // share of recorded payments allocated to this term
+  remainingAmount: number;
+  daysUntilDue: number; // negative means overdue
+  status: "paid" | "partial" | "overdue" | "due-soon" | "upcoming";
+}
+
 export interface Loan {
   id: string;
   debtType: DebtType;
@@ -27,7 +41,8 @@ export interface Loan {
   durationValue: number;
   durationUnit: DurationUnit;
   startDate: string; // YYYY-MM-DD
-  dueDate: string; // YYYY-MM-DD
+  dueDate: string; // YYYY-MM-DD — for term loans this is the FINAL term's due date
+  installments?: LoanInstallment[]; // repayment terms; absent = one single payment
   notes: string;
   payments: PaymentRecord[];
   createdAt: string;
@@ -38,9 +53,12 @@ export interface ComputedLoan extends Loan {
   totalDue: number;
   amountPaid: number;
   remainingBalance: number;
-  daysUntilDue: number; // negative means overdue
+  daysUntilDue: number; // negative means overdue — for term loans, measured against the NEXT unpaid term
   status: "settled" | "overdue" | "due-soon" | "on-track";
   progressPercent: number;
+  hasTerms: boolean;
+  installmentSchedule: ComputedInstallment[];
+  nextInstallment: ComputedInstallment | null;
 }
 
 export interface NotificationSettings {

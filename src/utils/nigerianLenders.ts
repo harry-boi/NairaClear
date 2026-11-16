@@ -1,9 +1,11 @@
 import {
+  ComputedInstallment,
   ComputedLoan,
   DebtType,
   DurationUnit,
   InterestMode,
   Loan,
+  LoanInstallment,
 } from "../types/loan";
 
 export const DEBT_TYPES: Array<{
@@ -180,6 +182,46 @@ export function formatReadableDate(dateISO: string): string {
   });
 }
 
+export function addDaysToISO(dateISO: string, days: number): string {
+  const [y, m, d] = dateISO.split("-").map(Number);
+  const date = new Date(y, (m || 1) - 1, d || 1);
+  date.setDate(date.getDate() + days);
+  const yy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
+// Split a total repayment into `count` near-equal terms spread evenly between
+// the start date and the final due date. The last term absorbs rounding and
+// always lands exactly on the final due date.
+export function splitIntoTerms(
+  total: number,
+  count: number,
+  startISO: string,
+  endISO: string
+): LoanInstallment[] {
+  if (count < 1) return [];
+  const base = Math.floor(total / count);
+  const spanDays = Math.max(
+    0,
+    Math.round(
+      (new Date(endISO).getTime() - new Date(startISO).getTime()) / 86400000
+    )
+  );
+  const step = count > 1 ? Math.max(1, Math.round(spanDays / count)) : 0;
+  const terms: LoanInstallment[] = [];
+  for (let i = 0; i < count; i++) {
+    const isLast = i === count - 1;
+    terms.push({
+      id: `term-${i}`,
+      amount: isLast ? total - base * (count - 1) : base,
+      dueDate: isLast ? endISO : addDaysToISO(startISO, step * (i + 1)),
+    });
+  }
+  return terms;
+}
+
 export function enrichLoan(loan: Loan, leadDays = 7): ComputedLoan {
   const interestAmount = calculateInterestAmount(
     loan.principal,
@@ -194,7 +236,50 @@ export function enrichLoan(loan: Loan, leadDays = 7): ComputedLoan {
     0
   );
   const remainingBalance = Math.max(0, totalDue - amountPaid);
-  const daysUntilDue = getDaysUntilDue(loan.dueDate);
+
+  // Build the repayment schedule. Loans without stored terms behave exactly
+  // as before: one single payment of the full total on the due date.
+  const hasTerms = Array.isArray(loan.installments) && loan.installments.length > 0;
+  const rawSchedule: LoanInstallment[] = hasTerms
+    ? [...(loan.installments as LoanInstallment[])].sort((a, b) =>
+        a.dueDate.localeCompare(b.dueDate)
+      )
+    : [{ id: "single", amount: totalDue, dueDate: loan.dueDate }];
+
+  // Allocate recorded payments to terms in due-date order (waterfall), so a
+  // lump payment clears the earliest terms first.
+  let unallocated = amountPaid;
+  const installmentSchedule: ComputedInstallment[] = rawSchedule.map(
+    (term, index) => {
+      const paidAmount = Math.min(term.amount, Math.max(0, unallocated));
+      unallocated -= paidAmount;
+      const remainingAmount = Math.max(0, term.amount - paidAmount);
+      const termDays = getDaysUntilDue(term.dueDate);
+      let termStatus: ComputedInstallment["status"] = "upcoming";
+      if (remainingAmount <= 0) termStatus = "paid";
+      else if (termDays < 0) termStatus = "overdue";
+      else if (paidAmount > 0) termStatus = "partial";
+      else if (termDays <= leadDays) termStatus = "due-soon";
+      return {
+        ...term,
+        index,
+        paidAmount,
+        remainingAmount,
+        daysUntilDue: termDays,
+        status: termStatus,
+      };
+    }
+  );
+
+  const nextInstallment =
+    installmentSchedule.find((t) => t.remainingAmount > 0) || null;
+
+  // For term loans, urgency is measured against the next unpaid term, and the
+  // displayed due date is that term's date (the stored dueDate stays the
+  // final term's date).
+  const effectiveDueDate =
+    hasTerms && nextInstallment ? nextInstallment.dueDate : loan.dueDate;
+  const daysUntilDue = getDaysUntilDue(effectiveDueDate);
 
   let status: ComputedLoan["status"] = "on-track";
   if (remainingBalance <= 0) {
@@ -210,6 +295,7 @@ export function enrichLoan(loan: Loan, leadDays = 7): ComputedLoan {
 
   return {
     ...loan,
+    dueDate: effectiveDueDate,
     interestAmount,
     totalDue,
     amountPaid,
@@ -217,6 +303,9 @@ export function enrichLoan(loan: Loan, leadDays = 7): ComputedLoan {
     daysUntilDue,
     status,
     progressPercent,
+    hasTerms,
+    installmentSchedule,
+    nextInstallment,
   };
 }
 

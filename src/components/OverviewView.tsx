@@ -555,6 +555,33 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                       {formatReadableDate(loan.dueDate)}
                     </span>
                   </div>
+
+                  {loan.hasTerms && (
+                    <div className="mt-2.5 text-xs text-slate-500 dark:text-slate-400">
+                      {loan.nextInstallment ? (
+                        <>
+                          Term {loan.nextInstallment.index + 1} of{" "}
+                          {loan.installmentSchedule.length} ·{" "}
+                          <span className="font-mono tabular-nums">
+                            {formatNairaDecimals(
+                              loan.nextInstallment.remainingAmount
+                            )}
+                          </span>{" "}
+                          this term
+                          {loan.installmentSchedule.some(
+                            (t) => t.status === "paid"
+                          ) &&
+                            ` · ${
+                              loan.installmentSchedule.filter(
+                                (t) => t.status === "paid"
+                              ).length
+                            } cleared`}
+                        </>
+                      ) : (
+                        <>All {loan.installmentSchedule.length} terms cleared</>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 pt-3.5 text-xs">
